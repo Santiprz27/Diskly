@@ -1,10 +1,10 @@
 <h1 align="center">
   <br>
-  💿 Diskly
+  Diskly
   <br>
 </h1>
 
-<h4 align="center">Analizador de espacio en disco de alto rendimiento para Windows.</h4>
+<h4 align="center">Analizador de espacio en disco para Windows.</h4>
 
 <p align="center">
   <a href="#-características">Características</a> •
@@ -22,7 +22,7 @@ Todo ello presentado en una interfaz gráfica moderna, cálida y altamente respo
 
 ## ✨ Características
 
-- ⚡ **Escaneo ultrarrápido** a través de la lectura directa del **USN Journal** de NTFS (solo toma de 2 a 5 segundos procesar más de 500.000 archivos).
+- ⚡ **Escaneo rápido** a través de la lectura directa del **USN Journal** de NTFS (solo toma de 2 a 5 segundos procesar más de 500.000 archivos).
 - 🗺️ **Visualizador Treemap nativo** de alto rendimiento implementado en QPainter con un algoritmo de distribución *Squarified*.
 - 🖱️ **Drill-down interactivo**, permitiendo la navegación fluida a través de carpetas y subcarpetas con un clic.
 - 🔍 **Búsqueda instantánea** inteligente por nombre o extensión que te guía a la ubicación exacta del archivo en el mapa.
@@ -54,31 +54,6 @@ En lugar de depender de pesados navegadores web embebidos, se construyó un pipe
 - Windows 10 u 11.
 - Python 3.11 superior.
 - *Permisos de administrador habilitados en la sesión de usuario.*
-
-### Construyendo desde el código fuente
-
-```bash
-# 1. Clona este repositorio
-git clone <tu-url-del-repo-github>
-cd Diskly
-
-# 2. Instala las dependencias necesarias
-pip install -r requirements.txt
-
-# 3. Ejecuta la aplicación 
-python main.py
-```
-*(Nota: Al ejecutar `main.py`, la aplicación forzará un relanzamiento mostrándo el Prompt de Administrador de Windows).*
-
-### Compilación a ejecutable (EXE)
-
-Si deseas tener un programa portable sin necesidad de tener la consola detrás:
-
-```bash
-# Simplemente ejecuta el batch:
-build_exe.bat
-```
-Esto creará una carpeta `/dist` en donde estará `Diskly.exe` autocontenido y listo para usar en cualquier PC de Windows.
 
 ---
 
