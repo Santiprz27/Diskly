@@ -17,7 +17,7 @@ from PyQt6.QtWidgets import (
     QSizePolicy, QTableWidget, QListWidget, QListWidgetItem,
     QTableWidgetItem, QHeaderView, QAbstractItemView,
 )
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QFont, QPixmap
 
 from scanner.dir_trie import DirNode
 from utils.elevation import is_admin
@@ -125,22 +125,16 @@ class ControlPanel(QWidget):
         layout.setContentsMargins(16, 22, 16, 16)
         layout.setSpacing(0)
 
-        # ── Logo + Admin badge ──
+        # ── Title ──
         logo_row = QHBoxLayout()
-        icon_lbl = QLabel("💿")
-        icon_lbl.setObjectName("logo-icon")
+        logo_row.setSpacing(12)
+        
         title_lbl = QLabel("Diskly")
         title_lbl.setObjectName("logo-title")
-        logo_row.addWidget(icon_lbl)
+        
         logo_row.addWidget(title_lbl)
         logo_row.addStretch()
-        badge = QLabel("Admin" if _ADMIN else "Usuario")
-        badge.setObjectName("AdminBadge" if _ADMIN else "NormalBadge")
-        badge.setToolTip(
-            "Modo administrador activo — escaneo rápido vía USN Journal" if _ADMIN
-            else "Sin privilegios de administrador — usando modo scandir"
-        )
-        logo_row.addWidget(badge)
+        
         layout.addLayout(logo_row)
 
         layout.addSpacing(3)

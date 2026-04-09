@@ -50,11 +50,11 @@ class MainWindow(QMainWindow):
         self._panel.scan_cancelled.connect(self._cancel_scan)
         self._panel.navigate_requested.connect(self._navigate_from_panel)
         self._panel.search_changed.connect(self._on_search)
-        self._panel.navigate_to_result.connect(self._chart.navigate_to)
 
         # Right chart
         self._chart = TreemapView()
         self._chart.navigated.connect(self._on_chart_navigated)
+        self._panel.navigate_to_result.connect(self._chart.navigate_to)
 
         root_layout.addWidget(self._panel)
 
@@ -155,9 +155,12 @@ class MainWindow(QMainWindow):
             return
         if not query:
             self._panel.show_search_results([], "")
+            self._chart.set_search_results(None)
             return
+            
         matches_with_paths = self._root.search_with_paths(query, max_results=200)
         self._panel.show_search_results(matches_with_paths, query)
+        self._chart.set_search_results(matches_with_paths)
         if matches_with_paths:
             best_node, _ = matches_with_paths[0]
             log.info(

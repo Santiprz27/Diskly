@@ -89,11 +89,9 @@ def _usn_enumerate(
             if rec_len < 64:
                 break
 
-            raw_frn        = struct.unpack_from("<Q", buf, offset +  8)[0]
-            raw_parent_frn = struct.unpack_from("<Q", buf, offset + 16)[0]
-            file_attrs     = struct.unpack_from("<I", buf, offset + 52)[0]
-            fname_len      = struct.unpack_from("<H", buf, offset + 56)[0]
-            fname_off      = struct.unpack_from("<H", buf, offset + 58)[0]
+            raw_frn, raw_parent_frn, file_attrs, fname_len, fname_off = struct.unpack_from(
+                "<QQ28xIHH", buf, offset + 8
+            )
 
             # ── Mask both FRNs to 48 bits (strip sequence number) ──────────
             frn        = raw_frn        & _FRN_MASK

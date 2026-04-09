@@ -4,8 +4,8 @@ Design:
   - Each DirNode represents a file or directory.
   - insert() builds the tree from path components.
   - accumulate() post-order propagates sizes up.
-  - to_dataframe() exports to Plotly-ready DataFrame with numeric IDs.
-    Returns (df, id_map) where id_map[str_id] → path_parts from root.
+  - accumulate() post-order propagates sizes up.
+  - to_treemap_nodes() exports directly to a lightweight dict structure for the squarified layout.
   - top_files() returns the N heaviest files in this subtree (heap-based, O(n log k)).
 """
 
@@ -14,10 +14,9 @@ from __future__ import annotations
 import heapq
 from dataclasses import dataclass, field
 from typing import Iterator
-import pandas as pd
 
 
-@dataclass
+@dataclass(slots=True)
 class DirNode:
     name: str
     size: int = 0          # raw size (own files only, not children)
@@ -38,10 +37,11 @@ class DirNode:
         if not path_parts:
             return
         node = self
-        for i, part in enumerate(path_parts):
-            if part not in node.children:
-                node.children[part] = DirNode(name=part)
-            node = node.children[part]
+        for part in path_parts:
+            child = node.children.get(part)
+            if child is None:
+                child = node.children[part] = DirNode(name=part)
+            node = child
         node.size += size
         node.is_dir = is_dir
         if not is_dir:

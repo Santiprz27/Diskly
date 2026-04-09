@@ -153,15 +153,16 @@ def squarify_dirnode(node: Any, x: float, y: float, w: float, h: float, depth: i
     children = [c for c in node.children.values() if c.total_size > 0]
     children.sort(key=lambda c: c.total_size, reverse=True)
     
-    tot = sum(c.total_size for c in children)
+    # Normalize to area
+    items = []
+    tot = sum(c.total_size for c in children if c.total_size > 0)
     if tot == 0:
         return flat_list
         
-    # Normalize to area
-    items = []
     ratio = (inner_w * inner_h) / tot
     for c in children:
-        items.append({"node": c, "area": c.total_size * ratio})
+        if c.total_size > 0:
+            items.append({"node": c, "area": c.total_size * ratio})
         
     laid_out = squarify(items, inner_x, inner_y, inner_w, inner_h)
     
@@ -184,3 +185,53 @@ def squarify_dirnode(node: Any, x: float, y: float, w: float, h: float, depth: i
             flat_list.extend(squarify_dirnode(c_node, cx, cy, cw, ch, depth + 1, pad, path_parts + [c_node.name]))
             
     return flat_list
+
+def squarify_flat_results(results: List[Tuple[Any, List[str]]], x: float, y: float, w: float, h: float, pad: float = 2.0) -> List[Dict[str, Any]]:
+    """Compute squarified geometry for a flat list of search results.
+    
+    Args:
+        results: List of (DirNode, path_parts)
+    """
+    if not results or w <= 0 or h <= 0:
+        return []
+        
+    # The header area is already subtracted by TreemapView when passing y, h
+    # We only apply padding
+    inner_x = x + pad
+    inner_y = y + pad
+    inner_w = w - (pad * 2)
+    inner_h = h - (pad * 2)
+    
+    if inner_w <= 2 or inner_h <= 2:
+        return []
+        
+    # Limit to top 500 visual results to keep QPainter from dying on huge search hits
+    # Only include items that actually take up space to avoid ZeroDivisionError
+    valid_results = [(node, paths) for node, paths in results if node.total_size > 0][:500]
+    
+    if not valid_results:
+        return []
+        
+    tot = sum(node.total_size for node, _ in valid_results)
+    
+    items = []
+    ratio = (inner_w * inner_h) / tot
+    for node, path_parts in valid_results:
+        items.append({"node": node, "path_parts": path_parts, "area": node.total_size * ratio})
+        
+    laid_out = squarify(items, inner_x, inner_y, inner_w, inner_h)
+    
+    boxes = []
+    for item in laid_out:
+        node = item["node"]
+        boxes.append({
+            "rect": item["rect"],
+            "name": node.name,
+            "is_dir": node.is_dir,
+            "depth": 1,  # Flat, so all are depth 1
+            "size": node.total_size,
+            "node": node,
+            "path_parts": item["path_parts"]
+        })
+        
+    return boxes

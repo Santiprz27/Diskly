@@ -22,9 +22,9 @@ from PyQt6.QtGui import (
 )
 
 from scanner.dir_trie import DirNode
-from utils.format_bytes import format_bytes
 from utils.color_map import get_color_for_file
-from utils.squarify import squarify_dirnode
+from utils.squarify import squarify_dirnode, squarify_flat_results
+from utils.format_bytes import format_bytes
 
 log = logging.getLogger(__name__)
 
@@ -48,13 +48,16 @@ class TreemapView(QWidget):
         self.setMouseTracking(True)
         self.setCursor(Qt.CursorShape.ArrowCursor)
 
-        self._root: Optional[DirNode]         = None
-        self._nav_stack: list[list[str]]      = [[]]
-        self._current_node: Optional[DirNode] = None
+        self._root: DirNode | None = None
+        self._current_node: DirNode | None = None
+        self._nav_stack: list[list[str]] = []  # history of explicit specific paths
+        
+        # Search state
+        self._search_results: list[tuple[DirNode, list[str]]] | None = None
 
         self._boxes: list[dict[str, Any]]     = []
         self._hovered_box: Optional[dict]     = None
-        self._cached_pixmap: Optional[QPixmap] = None
+        self._cached_pixmap: QPixmap | None = None
 
         self._font        = QFont("Segoe UI", 8)
         self._header_font = QFont("Segoe UI", 9, QFont.Weight.Bold)
@@ -113,7 +116,7 @@ class TreemapView(QWidget):
             self.navigated.emit(list(path), node)
 
     def _recompute_layout(self) -> None:
-        if not self._current_node:
+        if not self._current_node and self._search_results is None:
             self._boxes = []
             self._cached_pixmap = None
             self.update()
@@ -125,11 +128,21 @@ class TreemapView(QWidget):
             return
 
         t0 = time.perf_counter()
-        current_path = self._nav_stack[-1] if self._nav_stack else []
-        self._boxes = squarify_dirnode(
-            self._current_node, 0, _HEADER_H, w, content_h,
-            pad=2.0, path_parts=current_path,
-        )
+        
+        if self._search_results is not None:
+            # We are in search flat mode
+            self._boxes = squarify_flat_results(
+                self._search_results, 0, _HEADER_H, w, content_h,
+                pad=2.0
+            )
+        else:
+            # Normal hierarchical mode
+            current_path = self._nav_stack[-1] if self._nav_stack else []
+            self._boxes = squarify_dirnode(
+                self._current_node, 0, _HEADER_H, w, content_h,
+                pad=2.0, path_parts=current_path,
+            )
+            
         log.debug(
             "Layout: %d boxes in %.1f ms",
             len(self._boxes), (time.perf_counter() - t0) * 1000,
@@ -147,6 +160,16 @@ class TreemapView(QWidget):
         self._recompute_layout()
 
     # ------------------------------------------------------------------ #
+    # Search Mode
+    # ------------------------------------------------------------------ #
+
+    def set_search_results(self, results: list[tuple[DirNode, list[str]]] | None) -> None:
+        """Switch treemap to flat mode showing only search results, or None to clear."""
+        self._search_results = results
+        self._cached_pixmap = None
+        self._recompute_layout()
+
+    # ------------------------------------------------------------------ #
     # Painting
     # ------------------------------------------------------------------ #
 
@@ -159,8 +182,13 @@ class TreemapView(QWidget):
 
         # Empty state
         if not self._boxes:
-            self._draw_header(painter, [])
-            self._draw_empty_state(painter)
+            if self._search_results is not None:
+                # We are in a search that returned 0 results structurally valid
+                self._draw_header(painter, ["Resultados de Búsqueda"])
+                self._draw_empty_search(painter)
+            else:
+                self._draw_header(painter, [])
+                self._draw_empty_state(painter)
             return
 
         # Content pixmap (cached)
@@ -235,17 +263,12 @@ class TreemapView(QWidget):
                     )
 
         # Draw path header on top of content
-        current_path = self._nav_stack[-1] if self._nav_stack else []
-        self._draw_header_on(painter, current_path)
+        current_path = ["Resultados de Búsqueda"] if self._search_results is not None else (self._nav_stack[-1] if self._nav_stack else [])
+        self._draw_header(painter, current_path)
         painter.end()
 
     def _draw_header(self, painter: QPainter, path: list[str]) -> None:
         """Draw header strip directly onto the widget painter (empty state)."""
-        painter.fillRect(QRectF(0, 0, self.width(), _HEADER_H), _BG_HEADER)
-        painter.fillRect(QRectF(0, _HEADER_H - 1, self.width(), 1), _BORDER)
-
-    def _draw_header_on(self, painter: QPainter, path: list[str]) -> None:
-        """Draw path header onto an already-active painter."""
         w = painter.device().width() if painter.device() else self.width()
 
         painter.fillRect(QRectF(0, 0, w, _HEADER_H), _BG_HEADER)
@@ -255,7 +278,9 @@ class TreemapView(QWidget):
         fm = QFontMetrics(self._path_font)
 
         # Build path string
-        if self._root:
+        if self._search_results is not None:
+            full = "Resultados de Búsqueda"
+        elif self._root:
             root_name = self._root.name.rstrip("\\")
             if path:
                 full = root_name + "\\" + "\\".join(path)
@@ -289,15 +314,23 @@ class TreemapView(QWidget):
     def _draw_empty_state(self, painter: QPainter) -> None:
         center_y = _HEADER_H + (self.height() - _HEADER_H) // 2
 
-        painter.setFont(QFont("Segoe UI Emoji", 40))
-        painter.setPen(QColor("#252725"))
-        icon_rect = QRect(0, center_y - 70, self.width(), 60)
-        painter.drawText(icon_rect, Qt.AlignmentFlag.AlignCenter, "💿")
-
         painter.setFont(QFont("Segoe UI", 13, QFont.Weight.Normal))
         painter.setPen(QColor("#303230"))
         msg_rect = QRect(0, center_y - 8, self.width(), 28)
         painter.drawText(msg_rect, Qt.AlignmentFlag.AlignCenter, "Selecciona una unidad y haz clic en Analizar")
+
+    def _draw_empty_search(self, painter: QPainter) -> None:
+        center_y = _HEADER_H + (self.height() - _HEADER_H) // 2
+
+        painter.setFont(QFont("Segoe UI Emoji", 40))
+        painter.setPen(QColor("#252725"))
+        icon_rect = QRect(0, center_y - 70, self.width(), 60)
+        painter.drawText(icon_rect, Qt.AlignmentFlag.AlignCenter, "🔍")
+
+        painter.setFont(QFont("Segoe UI", 13, QFont.Weight.Normal))
+        painter.setPen(QColor("#303230"))
+        msg_rect = QRect(0, center_y - 8, self.width(), 28)
+        painter.drawText(msg_rect, Qt.AlignmentFlag.AlignCenter, "No se encontraron resultados")
 
     # ------------------------------------------------------------------ #
     # Interaction
@@ -346,6 +379,10 @@ class TreemapView(QWidget):
 
         if event.button() == Qt.MouseButton.RightButton:
             self._handle_context_menu(event.globalPosition().toPoint(), box)
+            return
+
+        # Do not navigate backwards or by double click if in search flat mode
+        if self._search_results is not None:
             return
 
         if event.button() != Qt.MouseButton.LeftButton:
