@@ -12,7 +12,11 @@ import os
 import logging
 
 # ── Ensure project root is on sys.path ────────────────────────────────────
-ROOT = os.path.dirname(os.path.abspath(__file__))
+if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+    ROOT = sys._MEIPASS
+else:
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
