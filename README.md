@@ -1,96 +1,157 @@
-<h1 align="center">
-  <br>
-  Diskly
-  <br>
-</h1>
+# Diskly
 
-<h4 align="center">Disk space analyzer for Windows.</h4>
+A high-performance disk analysis tool for Windows, providing visual insights into storage distribution and file system structure.
 
-<p align="center">
-  <em>Read this in other languages: <a href="README.md">English</a>, <a href="README-es.md">Español</a></em>
-</p>
+## Description
+Diskly is a powerful Python-based utility designed to help users understand how their disk space is being utilized. Inspired by tools like WinDirStat, it offers a combination of fast scanning algorithms (including MFT parsing) and a dynamic TreeMap visualization to identify large files and folders at a glance.
 
-<p align="center">
-  <a href="#-features">Features</a> •
-  <a href="#-how-it-works">How It Works</a> •
-  <a href="#-installation-and-usage">Installation & Usage</a> •
-  <a href="#-architecture">Architecture</a> •
-  <a href="#-tech-stack">Tech Stack</a>
-</p>
+## Detailed Overview
+Managing disk space effectively is a common challenge. Diskly addresses this by providing a comprehensive overview of the file system. It features a custom-built TreeMap implementation that represents files and folders as nested rectangles, where the area corresponds to the file size. The tool also includes a fast scanner that can directly read the NTFS Master File Table (MFT) for near-instant results on large volumes when run with appropriate privileges.
 
----
+## Features
+- Fast NTFS MFT scanning for rapid disk analysis
+- Interactive TreeMap visualization of file and folder sizes
+- Real-time file categorization and filtering
+- Detailed folder exploration and file attribute viewing
+- Support for multiple volumes and directories
+- Professional UI with custom styling (QSS)
 
-**Diskly** is a native Windows tool designed to visualize and analyze the space used on your hard drives at extreme speeds. Using low-level techniques to read the Master File Table (MFT) directly, it manages to scan millions of files in a matter of seconds, rivaling industry leaders like *WizTree* or *SpaceSniffer*.
+## Technologies Used
+- Python 3.x
+- PyQt / PySide (GUI Framework)
+- Squarify (TreeMap algorithm)
+- NTFS system integration (for MFT scanning)
 
-All of this is presented in a modern, warm, and highly responsive graphical interface built with PyQt6.
+## Installation Instructions
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/Santiprz27/Diskly.git
+   ```
+2. Navigate to the project directory:
+   ```bash
+   cd Diskly
+   ```
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. Run the application:
+   ```bash
+   python main.py
+   ```
 
-## ✨ Features
+## Usage Examples
+1. Launch Diskly as Administrator (required for MFT scanning).
+2. Select the drive or folder you wish to analyze.
+3. Click "Scan" to start the process.
+4. Interact with the TreeMap to navigate through your file system and identify space-consuming files.
 
-- ⚡ **Lightning-fast scanning** through direct reading of the NTFS **USN Journal** (it only takes 2 to 5 seconds to process over 500,000 files).
-- 🗺️ **Native Treemap Visualizer** built for high performance using QPainter with a *Squarified* layout algorithm.
-- 🖱️ **Interactive Drill-down**, allowing fluid navigation through folders and subfolders with a single click.
-- 🔍 **Instant Search** by name or extension that smartly guides you to the exact location of the file on the map.
-- 📊 **Insights Panel** featuring the Top 10 heaviest files at the current directory level.
-- 🎨 **Modern and Natural Design**, employing a warm palette and clean typography, without distractions.
-- 🛡️ **Smart UAC Auto-elevation**: the app requests administrator permissions upon opening and includes a fallback mode in case privileges are denied.
+## Project Structure
+- `main.py`: Entry point for the application.
+- `main_window.py`: Primary GUI logic and window management.
+- `treemap_view.py`: Implementation of the interactive TreeMap visualization.
+- `scanner_thread.py`: Background processing for file system scanning.
+- `app.qss`: Stylesheet for the application interface.
+- `ui/`: Directory for UI components and layouts.
+- `utils/`: Common utilities and helper functions.
 
----
+## Configuration
+Diskly can be configured via environment variables or settings within the application for custom scan depths and visualization preferences.
 
-## 🚀 How It Works
+## API Documentation
+Internal modules are documented using standard docstrings. For developer-focused information, refer to the `utils` and `scanner` directories.
 
-To achieve performance similar to industrial tools, Diskly does not rely on traditional Python searches (`os.walk` or `os.scandir`). Instead, it communicates at a low level with the Windows kernel.
+## Screenshots or Examples
+![Diskly TreeMap Visualization](Diskly.lnk) *(Placeholder for actual visualization screenshot)*
 
-### 1. The Scanning Engine (USN Journal)
-When running Diskly as an Administrator on an **NTFS** partition, the application uses the native Windows API `DeviceIoControl` with the `FSCTL_ENUM_USN_DATA` flag. This literally "dumps" the entire disk table into memory in a single blocking hit of less than a second, returning the File Reference Numbers (FRNs) of each entry.
-Then, it iteratively reconstructs the disk's family tree (without recursion) using strict 48-bit identifier masking. Calls to `os.stat` to obtain sizes are deferred and executed by taking full advantage of the OS RAM cache.
+## Roadmap / Future Improvements
+- Cross-platform support for Linux and macOS
+- Advanced file search and deletion capabilities
+- Exporting scan results to various formats (JSON, CSV)
+- Integration with cloud storage providers
 
-### 2. Base Data Structure (Trie)
-All this raw information feeds a tree (`DirNode`) where the post-processing magic happens: post-order propagation to sum gigabytes up to the root folders `O(n)`, and fixed-size heap generation to calculate the Top 10 heaviest files in real-time `O(n log k)`.
+## Contributing Guidelines
+We welcome contributions through pull requests. Please follow PEP 8 style guidelines for Python code.
 
-### 3. Rendering and Layout (*Squarified*)
-Rather than relying on heavy embedded web browsers, a 100% native rendering pipeline (`QPainter`) was built. It calculates the perfect aspect ratio (as close to 1:1 squares as possible) using a *Squarified* system, visually prioritizing the most massive directories.
-
----
-
-## 💻 Installation and Usage
-
-### Prerequisites
-- Windows 10 or 11.
-- Python 3.11 or higher.
-- *Administrator permissions enabled on the user session.*
-
----
-
-## 🏗️ Architecture
-
-The project follows a clear separation of concerns between view and logic (without strictly being MVC).
-
-```text
-Diskly/
-├── main.py                  # Entry point — UAC auto-elevation and QtWidgets initialization.
-├── scanner/                 # (Backend) All low-level OS interaction.
-│   ├── mft_scanner.py       # USN Journal engine and os.scandir fallback.
-│   ├── scanner_thread.py    # QThread linking the blocking scanner with the UI.
-│   └── dir_trie.py          # RAM Trie structure, path-aware searching.
-├── ui/                      # (Frontend) PyQt6.
-│   ├── main_window.py       # Interconnects dockable layout signals.
-│   ├── control_panel.py     # Left-sidebar (Inputs, search results and Top10).
-│   └── treemap_view.py      # Right-view (Raw Qt Canvas).
-├── utils/                   
-│   ├── elevation.py         # Kernel32 wrappers for elevation.
-│   └── squarify.py          # Math for fractal map subdivision.
-└── styles/
-    └── app.qss              # System stylesheet.
-```
+## License
+MIT License
 
 ---
 
-## ⚙️ Tech Stack
+# Diskly (Español)
 
-- **[PyQt6](https://pypi.org/project/PyQt6/)** base UI and rendering framework.
-- **[pywin32](https://pypi.org/project/pywin32/)** the necessary bridge to talk directly with Win32API (`win32file`).
-- **[psutil](https://pypi.org/project/psutil/)** for initial state collection of mounted drives.
-- **[PyInstaller](https://pyinstaller.org/en/stable/)** packaging and distribution.
+Una herramienta de análisis de disco de alto rendimiento para Windows, que proporciona información visual sobre la distribución del almacenamiento y la estructura del sistema de archivos.
 
----
-> Project developed with a primary focus on I/O access speed to modern Microsoft file systems.
+## Descripción
+Diskly es una potente utilidad basada en Python diseñada para ayudar a los usuarios a comprender cómo se está utilizando su espacio en disco. Inspirado en herramientas como WinDirStat, ofrece una combinación de algoritmos de escaneo rápido (incluyendo el análisis de MFT) y una visualización dinámica de tipo TreeMap.
+
+## Resumen Detallado
+Gestionar el espacio en disco de manera efectiva es un desafío común. Diskly aborda esto proporcionando una visión general completa del sistema de archivos. Cuenta con una implementación personalizada de TreeMap que representa archivos y carpetas como rectángulos anidados, donde el área corresponde al tamaño del archivo.
+
+## Características
+- Escaneo rápido de NTFS MFT para un análisis veloz
+- Visualización interactiva mediante TreeMap de los tamaños de archivos y carpetas
+- Categorización y filtrado de archivos en tiempo real
+- Exploración detallada de carpetas y visualización de atributos de archivos
+- Soporte para múltiples volúmenes y directorios
+- Interfaz profesional con estilos personalizados (QSS)
+
+## Tecnologías Utilizadas
+- Python 3.x
+- PyQt / PySide (Framework de GUI)
+- Squarify (Algoritmo de TreeMap)
+- Integración con el sistema NTFS
+
+## Instrucciones de Instalación
+1. Clonar el repositorio:
+   ```bash
+   git clone https://github.com/Santiprz27/Diskly.git
+   ```
+2. Navegar al directorio del proyecto:
+   ```bash
+   cd Diskly
+   ```
+3. Instalar las dependencias:
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. Ejecutar la aplicación:
+   ```python
+   python main.py
+   ```
+
+## Ejemplos de Uso
+1. Iniciar Diskly como Administrador (requerido para el escaneo de MFT).
+2. Seleccionar la unidad o carpeta que deseas analizar.
+3. Haz clic en "Escanear" para comenzar el proceso.
+4. Interactúa con el TreeMap para navegar por tu sistema de archivos e identificar archivos voluminosos.
+
+## Estructura del Proyecto
+- `main.py`: Punto de entrada de la aplicación.
+- `main_window.py`: Lógica principal de la GUI y gestión de ventanas.
+- `treemap_view.py`: Implementación de la visualización interactiva TreeMap.
+- `scanner_thread.py`: Procesamiento en segundo plano para el escaneo del sistema.
+- `app.qss`: Hoja de estilos para la interfaz de la aplicación.
+- `ui/`: Directorio para componentes de interfaz y diseños.
+- `utils/`: Utilidades comunes y funciones auxiliares.
+
+## Configuración
+Diskly puede configurarse a través de variables de entorno o ajustes dentro de la aplicación para profundidades de escaneo personalizadas.
+
+## Documentación de la API
+Los módulos internos están documentados utilizando docstrings estándar.
+
+## Capturas de Pantalla o Ejemplos
+![Visualización de Diskly](Diskly.lnk)
+
+## Hoja de Ruta / Mejoras Futuras
+- Soporte multiplataforma para Linux y macOS
+- Capacidades avanzadas de búsqueda y eliminación de archivos
+- Exportación de resultados a varios formatos (JSON, CSV)
+- Integración con proveedores de almacenamiento en la nube
+
+## Guía para Contribuir
+¡Las contribuciones son bienvenidas! Por favor, sigue las guías de estilo PEP 8 para el código Python.
+
+## Licencia
+Licencia MIT
